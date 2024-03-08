@@ -3,6 +3,16 @@ from dotenv import load_dotenv
 from discord import *
 from responses import get_response
 
+# FIXMEEE 
+membersLIST = {'Jake': "https://www.youtube.com/watch?v=pvZJ8RDdlPI", 'why_yoshi' : "https://www.youtube.com/watch?v=YDAwLAoAeyw"}
+
+
+
+# adding this for youtube playback
+from discord.ext import commands
+import youtube_dl
+from discord import FFmpegPCMAudio
+
 #load our token from somehwre sage
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -11,6 +21,8 @@ print(TOKEN)
 #bot setup
 intents = Intents.default()
 intents.message_content = True
+intents.voice_states = True  # Enable voice state events
+
 
 client = Client(intents = intents)
 
@@ -52,18 +64,40 @@ async def on_message(message: Message) -> None:
     print(f'[{channel}] {username} : "{user_message}"')
     await send_message(message, user_message)
 
+
+youtube_dl.utils.bug_reports_message = lambda: ''
+
 # !!! CHECKING VOICE UPDATES
 @client.event
 async def on_voice_state_update(member, before, after) -> None:
     if before.channel != after.channel:  # Check if the user changed voice channels
         if after.channel:  # User joined a voice channel
             print(f'{member.display_name} joined {after.channel.name}')
+            
+            await join_voice_channel(after.channel, member.display_name)
+
         if before.channel:  # User left a voice channel
             print(f'{member.display_name} left {before.channel.name}')
 
-#main entry point:
-def main() -> None:
-    client.run(token=TOKEN)
 
-if __name__ == '__main__':
-    main()
+@client.event
+async def join_voice_channel(channel, UserName):
+    # Fetch the channel object
+    if channel:
+        # Connect to the voice channel
+        voice_client = await channel.connect()
+
+        try:
+            with youtube_dl.YoutubeDL() as ydl:
+                info = ydl.extract_info(membersLIST[UserName], download=False)
+                url = info['formats'][0]['url']
+                voice_client.play(FFmpegPCMAudio(url), after=lambda e: print('done', e))
+        
+        except youtube_dl.DownloadError as e:    
+            print(f"Error downloading audio: {e}")
+
+    else:
+        print("Channel not found.")
+
+
+client.run(token=TOKEN)
