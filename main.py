@@ -4,9 +4,7 @@ from discord import *
 from responses import get_response
 
 # FIXMEEE 
-membersLIST = {'Jake': "https://www.youtube.com/watch?v=pvZJ8RDdlPI", 'why_yoshi' : "https://www.youtube.com/watch?v=YDAwLAoAeyw"}
-
-
+membersLIST = {'Jake': "https://www.youtube.com/watch?v=YDAwLAoAeyw", 'why_yoshi' : "https://www.youtube.com/watch?v=KFU-_Ock6Pc"}
 
 # adding this for youtube playback
 from discord.ext import commands
@@ -22,48 +20,13 @@ print(TOKEN)
 intents = Intents.default()
 intents.message_content = True
 intents.voice_states = True  # Enable voice state events
+##ADDING IN COMMANDS FOR BOT
+command_prefix = "!!"
 
+# Create a bot instance with the specified command prefix
+bot = commands.Bot(command_prefix=command_prefix, intents=intents)
 
 client = Client(intents = intents)
-
-# message functianality
-async def send_message(msg: Message, userMsg: str) -> None:
-    if not userMsg:
-        print('(USER MSG EMPTY AS intents were not enabled)')
-
-        return None
-    
-    # is_private = userMsg[0]
-    # if is_private:  
-    # the same is done below in 1 line
-    
-    if is_private := userMsg[0] == '?': 
-        userMsg = userMsg[1:] # slice from question mark
-
-    try:
-        response = str(get_response(userMsg))
-        await msg.author.send(response) if is_private else await msg.channel.send(response)
-    except Exception as e:
-        print(e)
-
-#handling startup for our bot
-@client.event
-async def on_read() -> None:
-    print(client.user, "is now running")
-
-#handiling incoming msgs
-@client.event
-async def on_message(message: Message) -> None:
-    if message.author == client.user:
-        return None
-    
-    username = str(message.author)
-    user_message = message.content
-    channel = str(message.channel)
-
-    print(f'[{channel}] {username} : "{user_message}"')
-    await send_message(message, user_message)
-
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -81,14 +44,18 @@ async def on_voice_state_update(member, before, after) -> None:
 
 
 @client.event
-async def join_voice_channel(channel, UserName):
+async def join_voice_channel(channel, UserName) -> None:
     # Fetch the channel object
     if channel:
         # Connect to the voice channel
         voice_client = await channel.connect()
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'extractor': 'youtube',
+        }
 
         try:
-            with youtube_dl.YoutubeDL() as ydl:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(membersLIST[UserName], download=False)
                 url = info['formats'][0]['url']
                 voice_client.play(FFmpegPCMAudio(url), after=lambda e: print('done', e))
@@ -100,4 +67,22 @@ async def join_voice_channel(channel, UserName):
         print("Channel not found.")
 
 
+
+# adding in command for multiple users to have intros/ themes
+@bot.command()
+async def theme(ctx) -> None:
+    if (ctx.message) != "" :
+        print(ctx.message)
+        print(membersLIST[ctx.author])
+        
+        #check if the user is not in member list
+        if ctx.author not in membersLIST:
+            membersLIST[ctx.author] = ctx.message
+        else:
+            #if user already in dict
+            membersLIST[ctx.author] = ctx.message
+    
+    
+
 client.run(token=TOKEN)
+bot.run(token=TOKEN)
