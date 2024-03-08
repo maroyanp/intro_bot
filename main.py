@@ -4,6 +4,7 @@ from discord.ext import commands
 from discord import * 
 import youtube_dl
 import yt_dlp
+import asyncio
 
 
 # Load environment variables
@@ -22,29 +23,24 @@ intents.voice_states = True
 intents.message_content = True
 bot = commands.Bot(command_prefix=command_prefix, intents=intents)
 
-# yt_dl_option = {"format" : "bestaudio/best"}
-# ytdl = yt_dlp.YoutubeDL(yt_dl_option)
+yt_dl_option = {"format" : "bestaudio/best"}
+ytdl = yt_dlp.YoutubeDL(yt_dl_option)
 
-# ffmpeg = {"options" : "-vn"}
+ffmpeg = {"options" : "-vn"}
 
 # Function to join voice channel and play music
 async def join_voice_channel(channel, user_name):
     voice_client = await channel.connect()
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-    }
-
 
     try:
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(membersLIST[user_name], download=False)
-            url = info['formats'][0]['url']
-            voice_client.play(FFmpegPCMAudio(url), after=lambda e: print('done', e))
+
+        data = ytdl.extract_info(membersLIST[user_name], download=False)
+        song = data['url']
+        player = FFmpegPCMAudio(song, **ffmpeg)
+        voice_client.play(player)
+
+        await asyncio.sleep(10)
+        await voice_client.disconnect()
 
     except youtube_dl.DownloadError as e:
         print(f"Error downloading audio: {e}")
