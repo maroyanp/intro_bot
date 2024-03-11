@@ -35,30 +35,14 @@ url_video = ""
 membersLIST = {}
 default_player = FFmpegPCMAudio(ytdl.extract_info(default_video, download=False)['url'], **ffmpeg)
 default_time = 10
-# added this to update the member list every 2 min and give deafult intros for everyone
-@tasks.loop(seconds=120)
-async def make_defult_intro(bot_guilds):
-    for i in bot_guilds:
-        print("GUILD --> ", i)
-        for j in i.members:
-            if str(j) not in "intro_bot#8398":
-                membersLIST[str(j)] = [default_player, default_time, ""]
-    print("finshing creating defaults for everyone")
-
-# @tasks.loop(seconds=120)
-# async def make_defult_intro(bot_guilds):
-#     for i in bot_guilds:
-#         print("GUILD --> ", i)
-#         for j in i.members:
-#             if str(j) not in "intro_bot#8398":
-#                 membersLIST[str(j)] = [default_player, default_time, ""]
-#     #tmp = bot_guilds.member_count
-#     tmp = 42
-#     print("this is tmp::: ", tmp)
 
 @bot.event
 async def on_ready():
-    make_defult_intro.start(bot.guilds)
+    for servers in bot.guilds:
+        for member in servers.members:
+            if str(member) not in "intro_bot#8398" and member not in membersLIST:
+                membersLIST[str(member)] = [default_player, default_time, ""]
+    print("Bot is ready mebers list is done for each guild")
 
 # Function to join voice channel and play music
 @bot.event
@@ -70,22 +54,20 @@ async def join_voice_channel(channel, user_name):
         # data = ytdl.extract_info(membersLIST[user_name], download=False)['url']
         # song = data['url']
         # player = FFmpegPCMAudio(song, **ffmpeg)
+
+        
         
         voice_client.play(membersLIST[user_name][0])
 
         await asyncio.sleep(membersLIST[user_name][1])
         await voice_client.disconnect()
 
-        # membersLIST[user_name][0] = FFmpegPCMAudio(ytdl.extract_info(membersLIST[user_name][0], download=False)['url'], **ffmpeg)
-
         if (membersLIST[user_name][2] != ""):
             player = FFmpegPCMAudio(ytdl.extract_info(membersLIST[user_name][2], download=False)['url'], **ffmpeg)
             membersLIST[user_name][0] = player
-            print("updated")
         else: 
-            default_player = FFmpegPCMAudio(ytdl.extract_info(default_video, download=False)['url'], **ffmpeg)
-            membersLIST[user_name][0] = default_player
-            print("in esle")
+            player = FFmpegPCMAudio(ytdl.extract_info(default_video, download=False)['url'], **ffmpeg)
+            membersLIST[user_name][0] = player
 
     except youtube_dl.DownloadError as e:
         print(f"Error downloading audio: {e}")
@@ -96,6 +78,7 @@ async def on_voice_state_update(member, before, after):
     if before.channel != after.channel:
         if after.channel:
             print(f'{member.display_name} joined {after.channel.name}')
+
             await join_voice_channel(after.channel, str(member))
 
         if before.channel:
@@ -107,11 +90,20 @@ async def on_voice_state_update(member, before, after):
 async def theme(ctx, url: str):
     url_video = url
     membersLIST[str(ctx.author)][2] = url_video
-    # tmp_player = FFmpegPCMAudio(ytdl.extract_info(url_video, download=False)['url'], **ffmpeg)
-    # membersLIST[user_name][0] = tmp_player
-    # print("in esle")
-    # membersLIST[str(ctx.author)[2]] = True
+    
+    player = FFmpegPCMAudio(ytdl.extract_info(membersLIST[str(ctx.author)][2], download=False)['url'], **ffmpeg)
+    membersLIST[str(ctx.author)][0] = player
+    # print("updated")
     await ctx.send(f"Theme set for {ctx.author.mention}")
+
+# Adding command for users to set intros/themes
+@bot.command()
+async def time(ctx, intro_length: int):
+    if (intro_length < 16 and intro_length > 3):
+        membersLIST[str(ctx.author)][1] = intro_length
+        await ctx.send(f"Theme Time set for {ctx.author.mention}")
+    else:
+        await ctx.send(f"Theme  time has to be within (3-15 seconds) for {ctx.author.mention}")
 
 
 
